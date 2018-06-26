@@ -1,0 +1,12 @@
+executable = job.sh
+arguments = $(nevents) $(start) $(end)
+log = job.log
+output = job.out
+error = job.err
+
+request_cpus = 1
+request_memory = 3000MB
+request_disk = 5GB
+request_gpus = 1
+
+queue 1
