@@ -12,6 +12,7 @@ from I3Tray import I3Tray
 from icecube.icetray import I3Units
 from icecube.MuonGun import load_model, StaticSurfaceInjector, Cylinder, OffsetPowerLaw, BundleConfiguration, BundleEntry
 
+from matplotlib import rc
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
@@ -47,7 +48,7 @@ for frame in infile:
     if(event_count%50000 == 0): 
         print "Event: "+ str(event_count); 
         if(args.BUG): break;
-    if ("I3MCTree" in frame): #count all generated events
+    if ("I3MCTree" in frame) and ("EntryMuon" in frame): #count all generated events
         event_count += 1; 
         number_muons = 0;
         energy_1 = 0; zenith_1 = 0; weight_1 = 0;
@@ -88,11 +89,12 @@ acceptance5  = take_ratios(veto5_vals[0],  weight_vals[0])
 acceptance10 = take_ratios(veto10_vals[0], weight_vals[0])
 xvals   = weight_vals[1][:-1]
 plt.clf()
+#plt.show(); exit(0)
 if(args.KIN == 'energy'):
     plt.semilogx(xvals, acceptance3,  label='PE > 3')
     plt.semilogx(xvals, acceptance5,  label='PE > 5')
-    plt.semilogx(xvals, acceptance10, label='PE > 10')
-    plt.xlabel("E [GeV[")
+    #plt.semilogx(xvals, acceptance10, label='PE > 10')
+    plt.xlabel("E$_{\mu}$ [GeV]")
     plt.legend(loc='upper left')
 if(args.KIN == 'zenith'):
     plt.plot(xvals, acceptance3,  label='PE > 3')
@@ -100,7 +102,7 @@ if(args.KIN == 'zenith'):
     plt.plot(xvals, acceptance10, label='PE > 10')
     plt.xlabel("cos (theta)")
     plt.legend(loc='lower right')
-plt.ylabel("Acceptance")
+plt.ylabel('P$_{light}$')
 #plt.show()
 plt.savefig(args.KIN+"_dist_bundle_"+str(args.NUM)+".pdf")
 print "Made file: " + args.KIN+"_dist_bundle_"+str(args.NUM)+".pdf"
