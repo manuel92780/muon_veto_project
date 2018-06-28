@@ -2,9 +2,10 @@
 import os, sys, numpy, argparse, time
 
 #import icecube stuff
-from icecube import dataclasses, dataio, phys_services, hdfwriter
+from I3Tray import I3Tray
+from icecube import icetray, dataio, dataclasses, phys_services, simclasses
+from icecube.simprod import segments
 from icecube import VHESelfVeto, DomTools, trigger_splitter, MuonGun
-from I3Tray import *
 from icecube.icetray import I3Units
 from icecube.MuonGun import load_model, StaticSurfaceInjector, Cylinder, OffsetPowerLaw
 from icecube.MuonGun.segments import GenerateBundles
@@ -149,6 +150,9 @@ def main():
     parser.add_argument('--runnum', default=1, type=int,
                         help='Run number for this sim')
     #detector args
+    parser.add_argument('--gcd', default=os.path.expandvars('$I3_TESTDATA/sim/GeoCalibDetectorStatus_IC86.55697_corrected_V2.i3.gz'),
+                        type=str,
+                        help='gcd file')
     parser.add_argument('--no-hybrid',  action="store_false", default=False,
                         dest='hybrid', help='do not perform a hybrid simulation (i.e. use clsim only)')
     parser.add_argument('--use-gpu',  action='store_true', default=False,
@@ -156,15 +160,17 @@ def main():
     args = parser.parse_args()
 
     #setup muongun parameters
+    gcdFile = args.gcd
     model = load_model(args.model)
     model.flux.max_multiplicity = args.multiplicity
-    surface = Cylinder(1600*I3Units.m, 800*I3Units.m, dataclasses.I3Position(31.25, 19.64, 0))
-    spectrum = OffsetPowerLaw(2, 0, args.emin, args.emax)
+    #surface = Cylinder(1600*I3Units.m, 800*I3Units.m, dataclasses.I3Position(0, 0, 0))
+    surface = MuonGun.ExtrudedPolygon.from_file(gcdFile)
+    #spectrum = OffsetPowerLaw(2, 0, args.emin, args.emax)
+    spectrum = OffsetPowerLaw(2, 1*I3Units.TeV, args.emin, args.emax)
     generator = StaticSurfaceInjector(surface, model.flux, spectrum, model.radius)
-    gcdFile = os.path.expandvars('$I3_TESTDATA/sim/GeoCalibDetectorStatus_IC86.55697_corrected_V2.i3.gz')
     
     #setup reconstruction parameters
-    load('VHESelfVeto')
+    icetray.load('VHESelfVeto')
     pulses = 'InIcePulses'
     
     #setup I3Tray
@@ -196,25 +202,33 @@ def main():
              InputPESeriesMapName="I3MCPESeriesMap")
 
     #now do the veto
+    from icecube.filterscripts import filter_globals
+    icetray.load("filterscripts",False)
+    icetray.load("cscd-llh",False)
+
     tray.Add(todet, surface=surface)
+    tray.AddModule('HomogenizedQTot', 'qtot_total',
+                   Pulses=pulses,
+                   Output='HomogenizedQTot',
+                   If= lambda frame: frame.Has('EntryMuon'))
     tray.AddModule("VHESelfVeto", 'selfveto_3',
-             VetoThreshold=3,
-             VertexThreshold=3,
-             pulses=pulses,
-             OutputBool="VHESelfVeto_3", OutputVertexPos="VHESelfVetoVertexPos_3", OutputVertexTime="VHESelfVetoVertexTime_3",
-             If = lambda frame: frame.Has('EntryMuon'))
+                   VetoThreshold=3,
+                   VertexThreshold=3,
+                   pulses=pulses,
+                   OutputBool="VHESelfVeto_3", OutputVertexPos="VHESelfVetoVertexPos_3", OutputVertexTime="VHESelfVetoVertexTime_3",
+                   If = lambda frame: frame.Has('EntryMuon'))
     tray.AddModule("VHESelfVeto", 'selfveto_5',
-             VetoThreshold=5,
-             VertexThreshold=5,
-             pulses=pulses,
-             OutputBool="VHESelfVeto_5", OutputVertexPos="VHESelfVetoVertexPos_5", OutputVertexTime="VHESelfVetoVertexTime_5",
-             If = lambda frame: frame.Has('EntryMuon'))
+                   VetoThreshold=5,
+                   VertexThreshold=5,
+                   pulses=pulses,
+                   OutputBool="VHESelfVeto_5", OutputVertexPos="VHESelfVetoVertexPos_5", OutputVertexTime="VHESelfVetoVertexTime_5",
+                   If = lambda frame: frame.Has('EntryMuon'))
     tray.AddModule("VHESelfVeto", 'selfveto_10',
-             VetoThreshold=10,
-             VertexThreshold=10,
-             pulses=pulses,
-             OutputBool="VHESelfVeto_10", OutputVertexPos="VHESelfVetoVertexPos_10", OutputVertexTime="VHESelfVetoVertexTime_10",
-             If = lambda frame: frame.Has('EntryMuon'))
+                   VetoThreshold=10,
+                   VertexThreshold=10,
+                   pulses=pulses,
+                   OutputBool="VHESelfVeto_10", OutputVertexPos="VHESelfVetoVertexPos_10", OutputVertexTime="VHESelfVetoVertexTime_10",
+                   If = lambda frame: frame.Has('EntryMuon'))
     #tray.Add(printer, If = lambda frame:frame.Has('EntryMuon'))    
 
     #write everything to file

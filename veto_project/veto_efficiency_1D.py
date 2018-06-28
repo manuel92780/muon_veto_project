@@ -45,7 +45,7 @@ muon_1.append([]);#[5] passes PE >10 veto
 #initialize the loop 
 event_count = 1
 for frame in infile:
-    if(event_count%50000 == 0): 
+    if(event_count%100000 == 0): 
         print "Event: "+ str(event_count); 
         if(args.BUG): break;
     if ("I3MCTree" in frame) and ("EntryMuon" in frame): #count all generated events
@@ -60,7 +60,8 @@ for frame in infile:
             if(energy > energy_1):
                 energy_1 = particle.energy / I3Units.GeV  #take normalized energy 
                 zenith_1 = np.cos(particle.dir.zenith)              #take cosine of zenith
-                weight_1 = frame["MuonWeight"].value/normalization #normalized by total files                
+                weight_1 = frame["MuonWeight"].value/normalization #normalized by total files
+                #weight_1 = 1.0 #play with normalization
                 if("VHESelfVeto_3" in frame):  veto3_1  = (int(frame["VHESelfVeto_3"].value) ) * weight_1;
                 if("VHESelfVeto_5" in frame):  veto5_1  = (int(frame["VHESelfVeto_5"].value) ) * weight_1;
                 if("VHESelfVeto_10" in frame): veto10_1 = (int(frame["VHESelfVeto_10"].value)) * weight_1;
@@ -76,10 +77,10 @@ x_values = 0
 if(args.KIN == 'energy'): 
     x_values = muon_1[0]
     xmin = 1e1; xmax = 1e5; xbins = np.logspace(np.log10(xmin),np.log10(xmax), xbins)
+    plt.xscale('log')
 if(args.KIN == 'zenith'): 
     x_values = muon_1[1]
     xmin = 0; xmax = 1;
-plt.xscale('log')
 weight_vals  = plt.hist(x_values, weights=muon_1[2], bins=xbins, range=(xmin,xmax), log="True", histtype='step', label='all events')
 veto3_vals   = plt.hist(x_values, weights=muon_1[3], bins=xbins, range=(xmin,xmax), log="True", histtype='step', label='PE > 3')
 veto5_vals   = plt.hist(x_values, weights=muon_1[4], bins=xbins, range=(xmin,xmax), log="True", histtype='step', label='PE > 5')
@@ -87,6 +88,7 @@ veto10_vals  = plt.hist(x_values, weights=muon_1[5], bins=xbins, range=(xmin,xma
 acceptance3  = take_ratios(veto3_vals[0],  weight_vals[0])
 acceptance5  = take_ratios(veto5_vals[0],  weight_vals[0])
 acceptance10 = take_ratios(veto10_vals[0], weight_vals[0])
+#np.where(d > 0, n, np.zeros(d.shape)) / np.where(d > 0, d, np.ones(d.shape))
 xvals   = weight_vals[1][:-1]
 plt.clf()
 #plt.show(); exit(0)
@@ -99,10 +101,11 @@ if(args.KIN == 'energy'):
 if(args.KIN == 'zenith'):
     plt.plot(xvals, acceptance3,  label='PE > 3')
     plt.plot(xvals, acceptance5,  label='PE > 5')
-    plt.plot(xvals, acceptance10, label='PE > 10')
+    #plt.plot(xvals, acceptance10, label='PE > 10')
     plt.xlabel("cos (theta)")
     plt.legend(loc='lower right')
 plt.ylabel('P$_{light}$')
+plt.grid(linestyle=':', linewidth=0.5)
 #plt.show()
 plt.savefig(args.KIN+"_dist_bundle_"+str(args.NUM)+".pdf")
 print "Made file: " + args.KIN+"_dist_bundle_"+str(args.NUM)+".pdf"
