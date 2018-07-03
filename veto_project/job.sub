@@ -4,9 +4,10 @@ log = job.log
 output = job.out
 error = job.err
 
-request_cpus = 1
 request_memory = 3000MB
 request_disk = 5GB
 request_gpus = 1
+
++SingularityImage="/cvmfs/singularity.opensciencegrid.org/opensciencegrid/osgvo-el7:latest"
 
 queue 1

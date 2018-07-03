@@ -18,7 +18,7 @@ def todet(frame, surface):
     detmu = MuonGun.muons_at_surface(frame, surface)
     if detmu:
         frame['EntryMuon'] = detmu[0]
-        
+
 def header(frame):
     frame['I3EventHeader'] = dataclasses.I3EventHeader()
 
@@ -138,7 +138,7 @@ def main():
                         help='seed for randomization')
     #muongun args
     parser.add_argument('--model', default='Hoerandel5_atmod12_SIBYLL', type=str)
-    parser.add_argument('--multiplicity', default=3, type=int,
+    parser.add_argument('--multiplicity', default=1, type=int,
                         help='Maximum muon bundle multiplcity')
     parser.add_argument('--emin', default=1e1, type=float,
                         help='Muon min energy (GeV)')
@@ -163,9 +163,8 @@ def main():
     gcdFile = args.gcd
     model = load_model(args.model)
     model.flux.max_multiplicity = args.multiplicity
-    #surface = Cylinder(1600*I3Units.m, 800*I3Units.m, dataclasses.I3Position(0, 0, 0))
-    surface = MuonGun.ExtrudedPolygon.from_file(gcdFile)
-    #spectrum = OffsetPowerLaw(2, 0, args.emin, args.emax)
+    surface = Cylinder(1600*I3Units.m, 800*I3Units.m, dataclasses.I3Position(0, 0, 0))
+    surface_det = MuonGun.ExtrudedPolygon.from_file(gcdFile)
     spectrum = OffsetPowerLaw(2, 1*I3Units.TeV, args.emin, args.emax)
     generator = StaticSurfaceInjector(surface, model.flux, spectrum, model.radius)
     
@@ -205,8 +204,8 @@ def main():
     from icecube.filterscripts import filter_globals
     icetray.load("filterscripts",False)
     icetray.load("cscd-llh",False)
-
-    tray.Add(todet, surface=surface)
+    
+    tray.Add(todet, surface=surface_det)
     tray.AddModule('HomogenizedQTot', 'qtot_total',
                    Pulses=pulses,
                    Output='HomogenizedQTot',

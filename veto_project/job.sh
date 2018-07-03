@@ -20,8 +20,8 @@ eval `/cvmfs/icecube.opensciencegrid.org/py2-v2/setup.sh`
 
 #run job
 bash /home/msilva/combo/build/env-shell.sh <<EOF
-python generate_muons.py --nseed ${num} --use-gpu --nevents $num_events --out $dir/data/muons_${event_start}_${event_end}.i3.gz
+python generate_muons.py --nseed ${num} --use-gpu --nevents $num_events --out $dir/data/muons_${event_start}_${event_end}.i3.gz  
 EOF
 
 cd $dir
-
+#python generate_muons.py --nseed ${num} --use-gpu --nevents $num_events --out $dir/data/muons_${event_start}_${event_end}.i3.gz  
