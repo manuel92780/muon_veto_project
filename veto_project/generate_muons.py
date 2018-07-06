@@ -16,14 +16,15 @@ print 'Started:', start_time
 
 def todet(frame, surface):
     detmu = MuonGun.muons_at_surface(frame, surface)
-    if detmu:
-        frame['EntryMuon'] = detmu[0]
-
+    #print "multi: " + str(len(detmu))
+    for i in range(len(detmu)):
+        frame['EnteringMuon_'+str(i)] = detmu[i]
+    
 def header(frame):
     frame['I3EventHeader'] = dataclasses.I3EventHeader()
 
 def printer(frame):
-    smuon = frame['EntryMuon']
+    smuon = frame['EnteringMuon_0']
     if frame.Has('VHESelfVeto_3'):
         print smuon.energy, smuon.dir.zenith, smuon.pos.z, int(frame['VHESelfVeto_3'].value)
     else:
@@ -138,13 +139,13 @@ def main():
                         help='seed for randomization')
     #muongun args
     parser.add_argument('--model', default='Hoerandel5_atmod12_SIBYLL', type=str)
-    parser.add_argument('--multiplicity', default=1, type=int,
+    parser.add_argument('--multiplicity', default=3, type=int,
                         help='Maximum muon bundle multiplcity')
-    parser.add_argument('--emin', default=1e1, type=float,
+    parser.add_argument('--emin', default=5e1, type=float,
                         help='Muon min energy (GeV)')
-    parser.add_argument('--emax', default=1e5, type=float,
+    parser.add_argument('--emax', default=1e6, type=float,
                         help='Muon max energy (GeV)')
-    parser.add_argument('--nevents', default=10, type=int,
+    parser.add_argument('--nevents', default=100, type=int,
                         help='Number of events')
     parser.add_argument('--out', default='muongun.i3.gz', help='Output file')
     parser.add_argument('--runnum', default=1, type=int,
@@ -209,26 +210,14 @@ def main():
     tray.AddModule('HomogenizedQTot', 'qtot_total',
                    Pulses=pulses,
                    Output='HomogenizedQTot',
-                   If= lambda frame: frame.Has('EntryMuon'))
+                   If= lambda frame: frame.Has('EnteringMuon_0'))
     tray.AddModule("VHESelfVeto", 'selfveto_3',
                    VetoThreshold=3,
                    VertexThreshold=3,
                    pulses=pulses,
                    OutputBool="VHESelfVeto_3", OutputVertexPos="VHESelfVetoVertexPos_3", OutputVertexTime="VHESelfVetoVertexTime_3",
-                   If = lambda frame: frame.Has('EntryMuon'))
-    tray.AddModule("VHESelfVeto", 'selfveto_5',
-                   VetoThreshold=5,
-                   VertexThreshold=5,
-                   pulses=pulses,
-                   OutputBool="VHESelfVeto_5", OutputVertexPos="VHESelfVetoVertexPos_5", OutputVertexTime="VHESelfVetoVertexTime_5",
-                   If = lambda frame: frame.Has('EntryMuon'))
-    tray.AddModule("VHESelfVeto", 'selfveto_10',
-                   VetoThreshold=10,
-                   VertexThreshold=10,
-                   pulses=pulses,
-                   OutputBool="VHESelfVeto_10", OutputVertexPos="VHESelfVetoVertexPos_10", OutputVertexTime="VHESelfVetoVertexTime_10",
-                   If = lambda frame: frame.Has('EntryMuon'))
-    #tray.Add(printer, If = lambda frame:frame.Has('EntryMuon'))    
+                   If = lambda frame: frame.Has('EnteringMuon_0'))
+    #tray.Add(printer, If = lambda frame:frame.Has('EnteringMuon_0'))    
 
     #write everything to file
     tray.AddModule('I3Writer', 'writer',
