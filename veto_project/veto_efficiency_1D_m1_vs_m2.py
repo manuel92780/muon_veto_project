@@ -66,7 +66,7 @@ for frame in infile:
           veto = 0; leading_muon = frame["EnteringMuon_0"];
           energy = leading_muon.energy; zpos = leading_muon.pos.z;
           weight = frame["MuonWeight"].value/normalization #normalized by total files
-          if("VHESelfVeto_3" in frame):  veto  = (int(frame["VHESelfVeto_3"].value) ) * weight;
+          if("VHESelfVeto_3Clean" in frame):  veto  = (int(frame["VHESelfVeto_3Clean"].value) ) * weight;
           muon[0].append(energy); muon[1].append(zpos); muon[2].append(weight); muon[3].append(veto);
      if ("EnteringMuon_1" in frame) and ("EnteringMuon_2" not in frame): #count all events with exactly n = 2 muons
           leader_pos = 0; 
@@ -78,8 +78,8 @@ for frame in infile:
           weight_1 = frame["MuonWeight"].value/normalization #normalized by total files
           energy_2 = subleading_muon.energy; zpos_2 = subleading_muon.pos.z;
           weight_2 = frame["MuonWeight"].value/normalization #normalized by total files
-          if("VHESelfVeto_3" in frame):  veto_1  = (int(frame["VHESelfVeto_3"].value) ) * weight_1;
-          if("VHESelfVeto_3" in frame):  veto_2  = (int(frame["VHESelfVeto_3"].value) ) * weight_2;
+          if("VHESelfVeto_3Clean" in frame):  veto_1  = (int(frame["VHESelfVeto_3Clean"].value) ) * weight_1;
+          if("VHESelfVeto_3Clean" in frame):  veto_2  = (int(frame["VHESelfVeto_3Clean"].value) ) * weight_2;
           muon_1[0].append(energy_1); muon_1[1].append(zpos_1); muon_1[2].append(weight_1); muon_1[3].append(veto_1);
           muon_2[0].append(energy_2); muon_2[1].append(zpos_2); muon_2[2].append(weight_2); muon_2[3].append(veto_2); 
           

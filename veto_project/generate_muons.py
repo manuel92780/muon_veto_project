@@ -171,8 +171,9 @@ def main():
     
     #setup reconstruction parameters
     icetray.load('VHESelfVeto')
-    pulses = 'InIcePulses'
-    
+    pulses    = 'InIcePulses'
+    HLCpulses = 'HLCInIcePulses'
+
     #setup I3Tray
     tray = I3Tray()
     tray.context['I3RandomService'] =  phys_services.I3GSLRandomService(seed = args.nseed)
@@ -198,8 +199,11 @@ def main():
              KeepPropagatedMCTree=True,
              KeepMCHits=True,
              KeepMCPulses=True,
-             SkipNoiseGenerator=True,
+             SkipNoiseGenerator=False,
              InputPESeriesMapName="I3MCPESeriesMap")
+
+    #clean the pulses
+    tray.AddModule('I3LCPulseCleaning', 'cleaning', OutputHLC=HLCpulses, OutputSLC='', Input=pulses) 
 
     #now do the veto
     from icecube.filterscripts import filter_globals
@@ -207,15 +211,26 @@ def main():
     icetray.load("cscd-llh",False)
     
     tray.Add(todet, surface=surface_det)
-    tray.AddModule('HomogenizedQTot', 'qtot_total',
+    tray.AddModule('HomogenizedQTot', 'qtot_totalDirty',
                    Pulses=pulses,
-                   Output='HomogenizedQTot',
+                   Output='HomogenizedQTotDirty',
                    If= lambda frame: frame.Has('EnteringMuon_0'))
-    tray.AddModule("VHESelfVeto", 'selfveto_3',
+    tray.AddModule("VHESelfVeto", 'selfveto_3Dirty',
                    VetoThreshold=3,
                    VertexThreshold=3,
                    pulses=pulses,
-                   OutputBool="VHESelfVeto_3", OutputVertexPos="VHESelfVetoVertexPos_3", OutputVertexTime="VHESelfVetoVertexTime_3",
+                   OutputBool="VHESelfVeto_3Dirty", OutputVertexPos="VHESelfVetoVertexPos_3Dirty", OutputVertexTime="VHESelfVetoVertexTime_3Dirty",
+                   If = lambda frame: frame.Has('EnteringMuon_0'))
+
+    tray.AddModule('HomogenizedQTot', 'qtot_totalClean',
+                   Pulses=HLCpulses,
+                   Output='HomogenizedQTotClean',
+                   If= lambda frame: frame.Has('EnteringMuon_0'))
+    tray.AddModule("VHESelfVeto", 'selfveto_3Clean',
+                   VetoThreshold=3,
+                   VertexThreshold=3,
+                   pulses=HLCpulses,
+                   OutputBool="VHESelfVeto_3Clean", OutputVertexPos="VHESelfVetoVertexPos_3Clean", OutputVertexTime="VHESelfVetoVertexTime_3Clean",
                    If = lambda frame: frame.Has('EnteringMuon_0'))
     #tray.Add(printer, If = lambda frame:frame.Has('EnteringMuon_0'))    
 
