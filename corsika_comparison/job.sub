@@ -1,0 +1,12 @@
+executable = job.sh
+arguments = $(seed) $(file_name)
+log = job.log
+output = job.out
+error = job.err
+
+request_memory = 3000MB
+request_disk = 1GB
+
++SingularityImage="/cvmfs/singularity.opensciencegrid.org/opensciencegrid/osgvo-el7:latest"
+
+queue 1
