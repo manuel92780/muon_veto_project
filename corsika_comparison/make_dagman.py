@@ -3,8 +3,8 @@ f = open('dagman.dag','w')
 
 file_name = 'corsika_list.txt'
 file_list = open(file_name).read().splitlines()
-#n_files = len(file_list)
 n_files = 1
+n_files = len(file_list)
 
 print "will submit " + str(n_files) + " jobs"
 for njob in range(n_files):
