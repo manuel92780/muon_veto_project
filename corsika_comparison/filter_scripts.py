@@ -49,7 +49,7 @@ muon_2.append([]);#[6] radial distance
 #initialize the loop
 event_count = 1
 for frame in infile:
-    if(event_count%10000 == 0):
+    if(event_count%100000 == 0):
         print "Event: "+ str(event_count);
         if(args.BUG): break;
     event_count+=1
@@ -81,6 +81,7 @@ for frame in infile:
     muon_2[0].append(energy_2);muon_2[1].append(zenith_2); muon_2[2].append(azimuth_2);
     muon_2[3].append(xpos_2); muon_2[4].append(ypos_2);muon_2[5].append(zpos_2); muon_2[6].append(rad_2);
 
+print "looped over: " + str(event_count) + " events"
 #dump into binary .npy file
 data = [];
 data.append(event);

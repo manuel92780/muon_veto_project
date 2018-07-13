@@ -30,7 +30,6 @@ def getweights(frame, generator, flux):
     energy = frame['MCPrimary'].energy
     ptype = frame['MCPrimary'].type
     weight = (flux(energy,ptype)/generator(energy,ptype))        
-    #print type(dataclasses.I3Double(weight))
     frame['Weight'] = dataclasses.I3Double(weight)
 
 def main():
@@ -68,8 +67,9 @@ def main():
      
     #weighting
     tray.Add("I3NullSplitter")
-    generator = weighting.from_simprod(20209)
-    generator *= 701
+    highE = weighting.from_simprod(20209)
+    lowE  = weighting.from_simprod(20243)
+    generator = highE*701 + lowE*925
     flux = Hoerandel5()
     tray.Add(getweights, generator=generator, flux=flux)
 
