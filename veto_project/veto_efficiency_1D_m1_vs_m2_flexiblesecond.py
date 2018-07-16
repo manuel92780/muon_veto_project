@@ -64,14 +64,18 @@ for frame in infile:
      if(event_count%100000 == 0): 
           print "Event: "+ str(event_count); 
           if(args.BUG): break;
-     event_count += 1; 
+     if ("HLCInIcePulses" not in frame): continue; #only care about pframes 
+     event_count += 1; number_muons = 0;
+     for particle in frame["I3MCTree"]:
+          if particle.type == dataclasses.I3Particle.ParticleType.MuMinus:
+               number_muons += 1; #found number of true muons
      if ("EnteringMuon_0" in frame) and ("EnteringMuon_1" not in frame): #count all events with exactly n = 1 muons
           veto = 0; leading_muon = frame["EnteringMuon_0"];
           energy = leading_muon.energy; zpos = leading_muon.pos.z;
           weight = frame["MuonWeight"].value/normalization #normalized by total files
           if("VHESelfVeto_3Clean" in frame):  veto  = (int(frame["VHESelfVeto_3Clean"].value) ) * weight;
           muon[0].append(energy); muon[1].append(zpos); muon[2].append(weight); muon[3].append(veto);
-     if ("EnteringMuon_1" in frame) and ("EnteringMuon_2" not in frame): #count all events with exactly n = 2 muons
+     if ("EnteringMuon_0" in frame): #count all events with exactly n = 2 muons
           leader_pos = 0; 
           veto_1  = 0; veto_2  = 0; 
           if(frame["EnteringMuon_1"].energy > frame["EnteringMuon_0"].energy): leader_pos = 1;
@@ -141,5 +145,5 @@ ax2.set_ylim(0.4, 1.6)
 ax2.yaxis.set_ticks(np.arange(0.4, 1.6, 0.2))
 
 #plt.show()
-plt.savefig("energy_dist_n1_vs_n2_"+args.RANGE+"_fitrange.pdf")
-print "Made file: " + "energy_dist_n1_vs_n2_"+args.RANGE+"_fitrange.pdf"
+plt.savefig("energy_dist_n1_vs_n2_only_one_required_to_enter_"+args.RANGE+"_fitrange.pdf")
+print "Made file: " + "energy_dist_n1_vs_n2_only_one_required_to_enter_"+args.RANGE+"_fitrange.pdf"

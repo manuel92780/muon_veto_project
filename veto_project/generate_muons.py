@@ -4,6 +4,7 @@ import os, sys, numpy, argparse, time
 #import icecube stuff
 from I3Tray import I3Tray
 from icecube import icetray, dataio, dataclasses, phys_services, simclasses
+from icecube.weighting import weighting, get_weighted_primary
 from icecube.simprod import segments
 from icecube import VHESelfVeto, DomTools, trigger_splitter, MuonGun
 from icecube.icetray import I3Units
@@ -29,6 +30,9 @@ def printer(frame):
         print smuon.energy, smuon.dir.zenith, smuon.pos.z, int(frame['VHESelfVeto_3'].value)
     else:
         print smuon.energy, smuon.dir.zenith, smuon.pos.z, 0
+
+def find_primary(frame):
+    get_weighted_primary(frame)
 
 @icetray.traysegment
 def DetectorSim(tray, name,
@@ -138,12 +142,12 @@ def main():
     parser.add_argument('--nseed', default=1, type=int,
                         help='seed for randomization')
     #muongun args
-    parser.add_argument('--model', default='Hoerandel5_atmod12_SIBYLL', type=str)
-    parser.add_argument('--multiplicity', default=3, type=int,
+    parser.add_argument('--model', default='GaisserH4a_atmod12_SIBYLL', type=str)
+    parser.add_argument('--multiplicity', default=100, type=int,
                         help='Maximum muon bundle multiplcity')
-    parser.add_argument('--emin', default=5e1, type=float,
+    parser.add_argument('--emin', default=1e2, type=float,
                         help='Muon min energy (GeV)')
-    parser.add_argument('--emax', default=1e6, type=float,
+    parser.add_argument('--emax', default=1e5, type=float,
                         help='Muon max energy (GeV)')
     parser.add_argument('--nevents', default=100, type=int,
                         help='Number of events')
@@ -166,7 +170,7 @@ def main():
     model.flux.max_multiplicity = args.multiplicity
     surface = Cylinder(1600*I3Units.m, 800*I3Units.m, dataclasses.I3Position(0, 0, 0))
     surface_det = MuonGun.ExtrudedPolygon.from_file(gcdFile)
-    spectrum = OffsetPowerLaw(2, 1*I3Units.TeV, args.emin, args.emax)
+    spectrum = OffsetPowerLaw(2.65, 0*I3Units.TeV, args.emin, args.emax)
     generator = StaticSurfaceInjector(surface, model.flux, spectrum, model.radius)
     
     #setup reconstruction parameters
@@ -179,7 +183,7 @@ def main():
     tray.context['I3RandomService'] =  phys_services.I3GSLRandomService(seed = args.nseed)
     #generate events
     tray.AddSegment(GenerateBundles, 'MuonGenerator', Generator=generator, NEvents=args.nevents, GCDFile=gcdFile)
-    tray.AddModule('I3MuonGun::WeightCalculatorModule', 'MuonWeight', Model=model,
+    tray.AddModule('I3MuonGun::WeightCalculatorModule', 'Weight', Model=model,
                    Generator=generator)
     #propagate particles
     tray.Add(segments.PropagateMuons, 'PropagateMuons',
@@ -192,6 +196,7 @@ def main():
              MaxParallelEvents=100,
              UseAllCPUCores=True,
              UseGPUs=args.use_gpu)
+
     #detector stuff
     tray.Add(DetectorSim, "DetectorSim",
              RandomService='I3RandomService',                                                                              
@@ -199,7 +204,7 @@ def main():
              KeepPropagatedMCTree=True,
              KeepMCHits=True,
              KeepMCPulses=True,
-             SkipNoiseGenerator=False,
+             SkipNoiseGenerator=True,
              InputPESeriesMapName="I3MCPESeriesMap")
 
     #clean the pulses
@@ -210,6 +215,7 @@ def main():
     icetray.load("filterscripts",False)
     icetray.load("cscd-llh",False)
     
+    tray.Add(find_primary)
     tray.Add(todet, surface=surface_det)
     tray.AddModule('HomogenizedQTot', 'qtot_totalDirty',
                    Pulses=pulses,
@@ -237,7 +243,8 @@ def main():
     #write everything to file
     tray.AddModule('I3Writer', 'writer',
                    Streams = [icetray.I3Frame.Physics, 
-                              icetray.I3Frame.DAQ],
+                              #icetray.I3Frame.DAQ
+                          ],
                    filename=args.out)
     tray.Execute()
     tray.Finish()

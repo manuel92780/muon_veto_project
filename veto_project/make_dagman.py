@@ -2,7 +2,7 @@
 f = open('dagman.dag','w')
 
 step   = 10000
-nevents = 1000001
+nevents = 10000001
 
 print "will submit " + str((nevents-1)/step) + " jobs"
 for njob in range(step, nevents, step):

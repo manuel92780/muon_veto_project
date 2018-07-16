@@ -21,6 +21,9 @@ def todet(frame, surface):
     #print "multi: " + str(len(detmu))
     for i in range(len(detmu)):
         frame['EnteringMuon_'+str(i)] = detmu[i]
+
+def printer(frame):
+    print frame
     
 def header(frame):
     frame['I3EventHeader'] = dataclasses.I3EventHeader()
@@ -69,17 +72,36 @@ def main():
     tray.Add("I3NullSplitter")
     highE = weighting.from_simprod(20209)
     lowE  = weighting.from_simprod(20243)
-    generator = highE*701 + lowE*925
+    generator = highE*50 + lowE*50
     flux = Hoerandel5()
     tray.Add(getweights, generator=generator, flux=flux)
 
     #find intersecting muons 
     tray.Add(todet, surface=surface_det)
 
+    #clean things up a bit
+    tray.AddModule("Delete", "corsika_cleanup",
+                   Keys = ["BackgroundI3MCTree",
+                           "BackgroundI3MCTreePECounts",
+                           "BackgroundI3MCTree_preMuonProp",
+                           "BackgroundMMCTrackList",
+                           "BackgroundI3MCTreePEcounts",
+                           "BadDomsList",
+                           "BadDomsListSLC",
+                           "BeaconLaunches",
+                           "I3MCPulseSeriesMap",
+                           "I3MCPulseSeriesMapParticleIDMap",
+                           "I3MCPulseSeriesMapPrimaryIDMap",
+                           "I3MCTree",
+                           "InIceRawData",
+                           "SignalI3MCTree",
+                           ])
+
     #write everything to file
     tray.AddModule('I3Writer', 'writer',
                    Streams = [icetray.I3Frame.Physics, 
-                              icetray.I3Frame.DAQ],
+                              #icetray.I3Frame.DAQ
+                          ],
                    filename=args.out+"_"+str(args.nseed)+".i3.gz")
     tray.Execute()
     tray.Finish()
