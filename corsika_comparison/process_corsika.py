@@ -5,7 +5,7 @@ import os, sys, argparse, time
 from I3Tray import I3Tray
 from icecube import icetray, dataio, dataclasses, phys_services, simclasses, VHESelfVeto, MuonGun, weighting
 from icecube.weighting import weighting, get_weighted_primary
-from icecube.weighting.fluxes import GaisserH3a
+from icecube.weighting.fluxes import GaisserH4a
 from icecube.weighting.fluxes import Hoerandel5
 from icecube.weighting import CORSIKAWeightCalculator
 from icecube.weighting import fluxes
@@ -16,11 +16,14 @@ from icecube.simprod import segments
 start_time = time.asctime()
 print 'Started:', start_time
 
-def todet(frame, surface):
+def muonstodet(frame, surface):
     detmu = MuonGun.muons_at_surface(frame, surface)
-    #print "multi: " + str(len(detmu))
     for i in range(len(detmu)):
         frame['EnteringMuon_'+str(i)] = detmu[i]
+
+def primarytodet(frame, surface):
+    primary = frame['MCPrimary']
+    intersections = surface.intersection(primary.pos, primary.dir)
 
 def printer(frame):
     print frame
@@ -45,6 +48,8 @@ def main():
     parser.add_argument('--out', default='corsika', help='Output file')
     parser.add_argument('--runnum', default=1, type=int,
                         help='Run number for this sim')
+    parser.add_argument('--did', default=20209, type=int,
+                        help='Simpord Number for this sim')
     #detector args
     parser.add_argument('--gcd', default=os.path.expandvars('$I3_TESTDATA/sim/GeoCalibDetectorStatus_IC86.55697_corrected_V2.i3.gz'),
                         type=str,
@@ -70,33 +75,23 @@ def main():
      
     #weighting
     tray.Add("I3NullSplitter")
-    highE = weighting.from_simprod(20209)
-    lowE  = weighting.from_simprod(20243)
-    generator = highE*50 + lowE*50
-    flux = Hoerandel5()
+    generator = weighting.from_simprod(args.did)
+    generator *= 50
+    flux = GaisserH4a()
     tray.Add(getweights, generator=generator, flux=flux)
 
     #find intersecting muons 
-    tray.Add(todet, surface=surface_det)
+    tray.Add(muonstodet, surface=surface_det)
+    tray.Add(primarytodet, surface=surface_det)
 
-    #clean things up a bit
-    tray.AddModule("Delete", "corsika_cleanup",
-                   Keys = ["BackgroundI3MCTree",
-                           "BackgroundI3MCTreePECounts",
-                           "BackgroundI3MCTree_preMuonProp",
-                           "BackgroundMMCTrackList",
-                           "BackgroundI3MCTreePEcounts",
-                           "BadDomsList",
-                           "BadDomsListSLC",
-                           "BeaconLaunches",
-                           "I3MCPulseSeriesMap",
-                           "I3MCPulseSeriesMapParticleIDMap",
-                           "I3MCPulseSeriesMapPrimaryIDMap",
-                           "I3MCTree",
-                           "InIceRawData",
-                           "SignalI3MCTree",
-                           ])
-
+    #do an N > 0 cut
+    def ncut(frame):
+        if frame.Has('EnteringMuon_0'):
+            return True
+        else:
+            return False
+    tray.AddModule(ncut, 'ncut')
+    
     #write everything to file
     tray.AddModule('I3Writer', 'writer',
                    Streams = [icetray.I3Frame.Physics, 

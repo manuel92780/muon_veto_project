@@ -103,6 +103,8 @@ def DetectorSim(tray, name,
                       'RandomServiceName' : RandomService,
                       'BeaconLaunches':BeaconLaunches})
 
+    tray.Add(header, streams=[icetray.I3Frame.DAQ])
+    tray.Add("I3NullSplitter") #literally converts Q to P frame
     from icecube import WaveCalibrator
     tray.AddModule("I3WaveCalibrator", "calibrate",
                    Waveforms='CalibratedWaveforms',
@@ -148,7 +150,7 @@ def main():
     parser.add_argument('--model', default='GaisserH4a_atmod12_SIBYLL', type=str)
     parser.add_argument('--multiplicity', default=1000, type=int,
                         help='Maximum muon bundle multiplcity')
-    parser.add_argument('--emin', default=5e1, type=float,
+    parser.add_argument('--emin', default=1e1, type=float,
                         help='Muon min energy (GeV)')
     parser.add_argument('--emax', default=1e6, type=float,
                         help='Muon max energy (GeV)')
@@ -171,11 +173,10 @@ def main():
     gcdFile = args.gcd
     model = load_model(args.model)
     model.flux.max_multiplicity = args.multiplicity
-    surface = Cylinder(1000*I3Units.m, 500*I3Units.m, dataclasses.I3Position(0, 0, 0))
+    surface = Cylinder(1600*I3Units.m, 800*I3Units.m, dataclasses.I3Position(0, 0, 0))
     surface_det = MuonGun.ExtrudedPolygon.from_file(gcdFile)
-    gamma = 1;
-    if(args.emin > 1e3):gamma = 2.65 
-    spectrum = OffsetPowerLaw(gamma, 0*I3Units.TeV, args.emin, args.emax)
+    spectrum = OffsetPowerLaw(2, 0*I3Units.TeV, args.emin, args.emax)
+    #spectrum = OffsetPowerLaw(2.65, 0*I3Units.TeV, args.emin, args.emax)
     generator = StaticSurfaceInjector(surface, model.flux, spectrum, model.radius)
 
 
@@ -195,39 +196,62 @@ def main():
              RandomService='I3RandomService', 
              InputMCTreeName="I3MCTree", 
              OutputMCTreeName="I3MCTree")
-    tray.Add(header, streams=[icetray.I3Frame.DAQ])
-    tray.Add("I3NullSplitter")
+    tray.Add(segments.PropagatePhotons, 'PropagatePhotons',
+             RandomService='I3RandomService',
+             HybridMode=args.hybrid, 
+             MaxParallelEvents=100,
+             UseAllCPUCores=True,
+             UseGPUs=args.use_gpu)
+
+    #detector stuff
+    tray.Add(DetectorSim, "DetectorSim",
+             RandomService='I3RandomService',
+             RunID=args.runnum,
+             KeepPropagatedMCTree=True,
+             KeepMCHits=True,
+             KeepMCPulses=True,
+             SkipNoiseGenerator=True,
+             GCDFile=gcdFile,
+             InputPESeriesMapName="I3MCPESeriesMap")
+    
+    #tray.Add(header, streams=[icetray.I3Frame.DAQ])
+    #tray.Add("I3NullSplitter")
+    #clean the pulses
     tray.AddModule('I3MuonGun::WeightCalculatorModule', 'Weight', Model=model,
                    Generator=generator)
+    tray.AddModule('I3LCPulseCleaning', 'cleaning', OutputHLC=HLCpulses, OutputSLC='', Input=pulses) 
+
+    #now do the veto
+    from icecube.filterscripts import filter_globals
+    icetray.load("filterscripts",False)
+    icetray.load("cscd-llh",False)
+    
     tray.Add(find_primary)
     tray.Add(todet, surface=surface_det)
+    tray.AddModule('HomogenizedQTot', 'qtot_totalDirty',
+                   Pulses=pulses,
+                   Output='HomogenizedQTotDirty',
+                   If= lambda frame: frame.Has('EnteringMuon_0'))
+    tray.AddModule("VHESelfVeto", 'selfveto_3Dirty',
+                   VetoThreshold=3,
+                   VertexThreshold=3,
+                   pulses=pulses,
+                   OutputBool="VHESelfVeto_3Dirty", OutputVertexPos="VHESelfVetoVertexPos_3Dirty", OutputVertexTime="VHESelfVetoVertexTime_3Dirty",
+                   If = lambda frame: frame.Has('EnteringMuon_0'))
 
-    #do an N > 0 cut
-    def ncut(frame):
-        if frame.Has('EnteringMuon_0'):
-            return True
-        else:
-            return False
-    tray.AddModule(ncut, 'ncut')
-    
-    #detector stuff
-    #tray.Add(segments.PropagatePhotons, 'PropagatePhotons',
-    #         RandomService='I3RandomService',
-    #         HybridMode=args.hybrid, 
-    #         MaxParallelEvents=100,
-    #         UseAllCPUCores=True,
-    #         UseGPUs=args.use_gpu)
+    tray.AddModule('HomogenizedQTot', 'qtot_totalClean',
+                   Pulses=HLCpulses,
+                   Output='HomogenizedQTotClean',
+                   If= lambda frame: frame.Has('EnteringMuon_0'))
+    tray.AddModule("VHESelfVeto", 'selfveto_3Clean',
+                   VetoThreshold=3,
+                   VertexThreshold=3,
+                   pulses=HLCpulses,
+                   OutputBool="VHESelfVeto_3Clean", OutputVertexPos="VHESelfVetoVertexPos_3Clean", OutputVertexTime="VHESelfVetoVertexTime_3Clean",
+                   If = lambda frame: frame.Has('EnteringMuon_0'))
+    #tray.Add(printer, If = lambda frame:frame.Has('EnteringMuon_0'))    
+    #tray.Add(print_gen, generator=generator)
 
-    #tray.Add(DetectorSim, "DetectorSim",
-    #         RandomService='I3RandomService',
-    #         RunID=args.runnum,
-    #         KeepPropagatedMCTree=True,
-    #         KeepMCHits=True,
-    #         KeepMCPulses=True,
-    #         SkipNoiseGenerator=True,
-    #         GCDFile=gcdFile,
-    #         InputPESeriesMapName="I3MCPESeriesMap")
-    
     #write everything to file
     tray.AddModule('I3Writer', 'writer',
                    Streams = [icetray.I3Frame.Physics, 
