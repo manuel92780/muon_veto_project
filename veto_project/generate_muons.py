@@ -171,7 +171,7 @@ def main():
     gcdFile = args.gcd
     model = load_model(args.model)
     model.flux.max_multiplicity = args.multiplicity
-    surface = Cylinder(1000*I3Units.m, 500*I3Units.m, dataclasses.I3Position(0, 0, 0))
+    surface = Cylinder(1400*I3Units.m, 700*I3Units.m, dataclasses.I3Position(0, 0, 0))
     surface_det = MuonGun.ExtrudedPolygon.from_file(gcdFile)
     gamma = 1;
     if(args.emin > 1e3):gamma = 2.65 
@@ -211,22 +211,22 @@ def main():
     tray.AddModule(ncut, 'ncut')
     
     #detector stuff
-    #tray.Add(segments.PropagatePhotons, 'PropagatePhotons',
-    #         RandomService='I3RandomService',
-    #         HybridMode=args.hybrid, 
-    #         MaxParallelEvents=100,
-    #         UseAllCPUCores=True,
-    #         UseGPUs=args.use_gpu)
+    tray.Add(segments.PropagatePhotons, 'PropagatePhotons',
+             RandomService='I3RandomService',
+             HybridMode=args.hybrid, 
+             MaxParallelEvents=100,
+             UseAllCPUCores=True,
+             UseGPUs=args.use_gpu)
 
-    #tray.Add(DetectorSim, "DetectorSim",
-    #         RandomService='I3RandomService',
-    #         RunID=args.runnum,
-    #         KeepPropagatedMCTree=True,
-    #         KeepMCHits=True,
-    #         KeepMCPulses=True,
-    #         SkipNoiseGenerator=True,
-    #         GCDFile=gcdFile,
-    #         InputPESeriesMapName="I3MCPESeriesMap")
+    tray.Add(segments.DetectorSim, "DetectorSim",
+             RandomService='I3RandomService',
+             RunID=args.runnum,
+             KeepPropagatedMCTree=True,
+             KeepMCHits=True,
+             KeepMCPulses=True,
+             SkipNoiseGenerator=True,
+             GCDFile=gcdFile,
+             InputPESeriesMapName="I3MCPESeriesMap")
     
     #write everything to file
     tray.AddModule('I3Writer', 'writer',

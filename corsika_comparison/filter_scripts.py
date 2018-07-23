@@ -19,15 +19,16 @@ print 'Started:', start_time
 #load a long list of files
 file_name = args.infiles
 infile    = dataio.I3FrameSequence(file_name)
-normalization  = len(file_name)
+normalization  = len(file_name)/1.0
 print "loaded your "+args.SIM+" MC in " + str(normalization) +" files!"
-if(args.SIM == 'corsika'): normalization = 1
+if(args.SIM == 'corsika'): normalization = 1.0
 
 
 #initialize the arrays
 event  = [];
 event.append([]); #[0]  weight
 event.append([]); #[1]  muon bundle size 
+event.append([]); #[2]  sum N muons energy
 
 muon_1 = [];
 muon_1.append([]);#[0] energy
@@ -49,7 +50,7 @@ muon_2.append([]);#[6] radial distance
 
 #initialize the loop
 event_count = 1
-bad_events = 0;
+bad_events = 0; no_mu_events = 0;
 for frame in infile:
     if(event_count%100000 == 0):
         print "Event: "+ str(event_count);
@@ -57,7 +58,7 @@ for frame in infile:
     event_count+=1
     if("EnteringMuon_0" not in frame): continue; #requires at least one muon to enter detector
     weight = frame["Weight"].value/normalization
-    number_muons = 0;
+    number_muons = 0; sum_energy = 0;
     energy_1 = 0; zenith_1 = 0; azimuth_1 = 0; xpos_1 = 0; ypos_1 = 0; zpos_1 = 0; rad_1 = 0;
     energy_2 = 0; zenith_2 = 0; azimuth_2 = 0; xpos_2 = 0; ypos_2 = 0; zpos_2 = 0; rad_2 = 0;
     for num in range(10000): #only count entering muons
@@ -65,8 +66,8 @@ for frame in infile:
         number_muons +=1;
         #and sort at each step
         particle = frame["EnteringMuon_"+str(num)]; primary = frame["MCPrimary"];
-        #particle_track = (frame["MMCTrackList"])[num];
         energy = particle.energy/ I3Units.GeV
+        sum_energy += energy
         if(energy > energy_1):
             energy_2 = energy_1; zenith_2 = zenith_1; azimuth_2 = azimuth_1;
             xpos_2 = xpos_1; ypos_2 = ypos_1; zpos_2 = zpos_1;
@@ -79,17 +80,23 @@ for frame in infile:
             xpos_2 = particle.pos.x; ypos_2 = particle.pos.y; zpos_2 = particle.pos.z;
             #rad_2 = phys_services.I3Calculator.closest_approach_distance(particle,primary.pos);
 
+    if(sum_energy > 1e6 or sum_energy < 3e3): continue
+
+    if(number_muons < 1):
+        no_mu_events+=1
+        continue
     if(weight > 100): 
         bad_events+=1
         continue
-    event[0].append(weight); event[1].append(number_muons);
+    event[0].append(weight); event[1].append(number_muons); event[2].append(sum_energy);
     muon_1[0].append(energy_1); muon_1[1].append(zenith_1); muon_1[2].append(azimuth_1); 
     muon_1[3].append(xpos_1); muon_1[4].append(ypos_1); muon_1[5].append(zpos_1); muon_1[6].append(rad_1);
     muon_2[0].append(energy_2);muon_2[1].append(zenith_2); muon_2[2].append(azimuth_2);
     muon_2[3].append(xpos_2); muon_2[4].append(ypos_2);muon_2[5].append(zpos_2); muon_2[6].append(rad_2);
 
 print "looped over: " + str(event_count) + " events"
-print "tossed: " + str(bad_events) + " events due to inf bug"
+print "tossed " + str(no_mu_events) + " no muon events"
+print "tossed " + str(bad_events) + " events due to inf bug"
 
 #dump into binary .npy file
 data = [];
