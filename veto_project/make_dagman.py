@@ -1,19 +1,20 @@
 
 f = open('dagman.dag','w')
 
-step   = 10000
-nevents = 1000001
-lowE=5e2
+step   = 100000
+nevents = 8000001
+lowE=1e3
 midE=1e4
-highE=1e6
+highE=1e7
+njobs = (nevents-1)/step
 
 #do lowE first
-print "will submit " + str(1*(nevents-1)/step) + " jobs"
+print "will submit " + str(njobs) + " jobs"
 for njob in range(step, nevents, step):
     start = njob-step+1
     end   = njob
     a = "JOB job"+str(njob/step)+" job.sub\n"
-    b = "VARS job"+str(njob/step)+" lowE=\""+str(lowE)+"\" highE=\""+str(highE)+"\" nevents=\""+str(step)+"\" start=\""+str(start)+"\" end=\""+str(end)+"\"\n"
+    b = "VARS job"+str(njob/step)+" njobs=\""+str(njobs) +"\" lowE=\""+str(lowE)+"\" highE=\""+str(highE)+"\" nevents=\""+str(step)+"\" start=\""+str(start)+"\" end=\""+str(end)+"\"\n"
     f.write(a)
     f.write(b)
 
