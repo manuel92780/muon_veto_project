@@ -4,11 +4,10 @@ import os, sys, argparse, time
 #import icecube stuff
 from I3Tray import I3Tray
 from icecube import icetray, dataio, dataclasses, phys_services, simclasses, VHESelfVeto, MuonGun, weighting
-from icecube.weighting import weighting, get_weighted_primary
+from icecube.weighting import weighting, get_weighted_primary, SimprodNormalizations
 from icecube.weighting.fluxes import GaisserH4a
 from icecube.weighting.fluxes import Hoerandel5
 from icecube.weighting import CORSIKAWeightCalculator
-from icecube.weighting import fluxes
 from icecube.icetray import I3Units
 from icecube.MuonGun import Cylinder
 from icecube.simprod import segments
@@ -25,11 +24,11 @@ def primarytodet(frame, surface):
     primary = frame['MCPrimary']
     intersections = surface.intersection(primary.pos, primary.dir)
 
-def printer(frame):
-    print frame
-    
 def header(frame):
     frame['I3EventHeader'] = dataclasses.I3EventHeader()
+
+def printer(frame):
+    print frame
 
 def getweights(frame, generator, flux):
     get_weighted_primary(frame)
@@ -48,8 +47,10 @@ def main():
     parser.add_argument('--out', default='corsika', help='Output file')
     parser.add_argument('--runnum', default=1, type=int,
                         help='Run number for this sim')
-    parser.add_argument('--did', default=20209, type=int,
+    parser.add_argument('--did', default=20694, type=int,
                         help='Simpord Number for this sim')
+    parser.add_argument('--nfiles', default=1, type=int,
+                        help='Number of files to generate')
     #detector args
     parser.add_argument('--gcd', default=os.path.expandvars('$I3_TESTDATA/sim/GeoCalibDetectorStatus_IC86.55697_corrected_V2.i3.gz'),
                         type=str,
@@ -74,9 +75,14 @@ def main():
     tray.Add('I3Reader', Filenamelist=[args.gcd]+infiles)
      
     #weighting
+    tray.Add(header, streams=[icetray.I3Frame.DAQ])
     tray.Add("I3NullSplitter")
-    generator = weighting.from_simprod(args.did)
-    generator *= 50
+    generator = weighting.FiveComponent(947487, 1000, 1e+07, 
+                                        normalization=[5, 2.5, 1.1, 1.2, 1], gamma=[-2.65, -2.6, -2.6, -2.6, -2.6], 
+                                        height=1000, radius=500,
+                                        LowerCutoffType='EnergyPerNucleon', UpperCutoffType='EnergyPerNucleon')
+    nfiles = args.nfiles
+    generator *= nfiles
     flux = GaisserH4a()
     tray.Add(getweights, generator=generator, flux=flux)
 
@@ -85,8 +91,14 @@ def main():
     tray.Add(primarytodet, surface=surface_det)
 
     #do an N > 0 cut
+    global total_events; total_events = 0
+    global passed_events; passed_events = 0
     def ncut(frame):
+        global total_events
+        global passed_events
+        total_events += 1;
         if frame.Has('EnteringMuon_0'):
+            passed_events+=1;
             return True
         else:
             return False
@@ -100,6 +112,9 @@ def main():
                    filename=args.out+"_"+str(args.nseed)+".i3.gz")
     tray.Execute()
     tray.Finish()
+    print "totol events processed: " + str(total_events)
+    print "total events with one muon: " + str(passed_events)
+    print "efficiency: %0.2f" % (1. * passed_events/total_events)
     end_time = time.asctime()
     print 'Ended:', end_time
 
